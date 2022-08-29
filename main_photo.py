@@ -3,12 +3,15 @@ from scipy.spatial import distance as dist
 from imutils.video import FileVideoStream
 from imutils.video import VideoStream
 from imutils import face_utils
+from datetime import date
 import numpy as np
 import argparse
 import imutils
 import time
 import dlib
 import cv2
+import os
+import shutil
 
 
 def eye_aspect_ratio(eye):
@@ -48,6 +51,10 @@ predictor = dlib.shape_predictor("data/shape_predictor_68_face_landmarks.dat")
 
 time.sleep(1.0)
 
+output_folder = 'output'+date.today().isoformat()
+os.makedirs(output_folder+'/eyes_open')
+os.makedirs(output_folder+'/eyes_close')
+
 # loop over frames from the video stream
 # if this is a file video stream, then we need to check if
 # there any more frames left in the buffer to process
@@ -56,13 +63,12 @@ time.sleep(1.0)
 # it, and convert it to grayscale
 # channels)
 
-from os import walk
-filenames = next(walk("images/"), (None, None, []))[2]  # [] if no file
+filenames = next(os.walk("data/images/"), (None, None, []))[2]  # [] if no file
 
 for f in filenames:
     print()
     print(f)
-    frame = cv2.imread('images/'+f, cv2.IMREAD_GRAYSCALE)
+    frame = cv2.imread('data/images/'+f, cv2.IMREAD_GRAYSCALE)
     frame = imutils.resize(frame, width=450)
     #gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray = frame
@@ -70,10 +76,10 @@ for f in filenames:
     # detect faces in the grayscale frame
     rects = detector(gray, 0)
 
-    print('Number of people: ' + len(rects))
-
     # loop over the face detections
-    for index, rect in enumerate(rects):
+    i = 0
+    for rect in rects:
+        i += 1
         # determine the facial landmarks for the face region, then
         # convert the facial landmark (x, y)-coordinates to a NumPy
         # array
@@ -104,7 +110,8 @@ for f in filenames:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
             cv2.putText(frame, "EAR: {:.2f}".format(ear), (300, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            print('People' + index + 'Closed')
+            print('Closed')
+            shutil.copy2('data/images/'+f, output_folder+'/eyes_close/'+f)
 
 
         # otherwise, the eye aspect ratio is not below the blink
@@ -114,4 +121,11 @@ for f in filenames:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
             cv2.putText(frame, "EAR: {:.2f}".format(ear), (300, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            print('People' + index + 'Opened')
+            print('Opened')
+            shutil.copy2('data/images/'+f, output_folder+'/eyes_open/'+f)
+    print("number of people: " + str(i))
+
+if len(os.listdir(output_folder+'/eyes_open')) == 0:
+    os.removedirs(output_folder+'/eyes_open')
+if len(os.listdir(output_folder+'/eyes_close')) == 0:
+    os.removedirs(output_folder+'/eyes_close')
